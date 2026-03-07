@@ -5,25 +5,27 @@
 ## 功能
 
 - 🎨 **文生图** — 输入描述生成图片
-- 🖼️ **图生图** — 上传本地图片或粘贴公链 URL，基于参考图生成
+- 🖼️ **图生图** — 上传本地图片，基于参考图生成
 - 📐 **比例 & 分辨率** — 支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4，标准 / 2K / 4K
 - 🔍 **灯箱放大** — 点击图片全屏预览
 - 💾 **一键下载** — 下载生成的图片
 - 🔒 **API Key 安全** — 服务端代理，Key 不暴露到浏览器
-- 🔑 **访问密钥** — 支持 Admin（无限生成）和分发 Key（配额限制）
+- 🐧 **Linux.do OAuth 登录** — 通过 Linux.do 账号认证，Trust Level 2+ 可用
+- 📊 **配额管理** — 每位用户 10 次生图配额，管理员无限
 
 ## 技术栈
 
 - Next.js 16 (App Router)
 - Cloudflare R2 (图生图中转)
 - Flow2API (OpenAI 兼容 API)
+- Linux.do Connect (OAuth2 认证)
 
 ## 快速开始
 
 ### 1. 安装
 
 ```bash
-git clone https://github.com/你的用户名/flow-image-gen.git
+git clone https://github.com/kirenath/flow-image-gen.git
 cd flow-image-gen
 npm install
 ```
@@ -37,28 +39,19 @@ cp MUST_READ_ME.env.template .env.local
 nano .env.local
 ```
 
-### 3. 配置访问密钥
+需要配置以下环境变量：
 
-在项目根目录创建 `data/keys.json`：
+| 变量                    | 说明                                                            |
+| ----------------------- | --------------------------------------------------------------- |
+| `FLOW_API_URL`          | Flow2API 地址                                                   |
+| `FLOW_API_KEY`          | Flow2API 密钥                                                   |
+| `R2_*`                  | Cloudflare R2 配置（图生图中转用）                              |
+| `LINUXDO_CLIENT_ID`     | Linux.do Connect Client ID                                      |
+| `LINUXDO_CLIENT_SECRET` | Linux.do Connect Client Secret                                  |
+| `LINUXDO_REDIRECT_URI`  | OAuth 回调地址，如 `https://你的域名/api/auth/linuxdo/callback` |
+| `LINUXDO_ADMIN_IDS`     | 管理员的 Linux.do 用户 ID（逗号分隔）                           |
 
-```json
-{
-  "sk-admin-你的密钥": { "role": "admin", "name": "管理员" },
-  "sk-user-001": { "role": "user", "name": "朋友A", "quota": 50 },
-  "sk-user-002": { "role": "user", "name": "朋友B", "quota": 20 }
-}
-```
-
-| 字段    | 说明                                    |
-| ------- | --------------------------------------- |
-| `role`  | `admin` = 无限生成，`user` = 有配额限制 |
-| `name`  | 页面右上角显示的名称                    |
-| `quota` | user 角色的最大生成次数                 |
-
-> **提示：** 修改 `keys.json` 后无需重启，下次请求自动生效。  
-> `data/` 目录已加入 `.gitignore`，密钥和用量数据不会被提交。
-
-### 4. 运行
+### 3. 运行
 
 ```bash
 # 开发模式
