@@ -8,7 +8,7 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths through without auth
-  const publicPaths = ["/login", "/api/auth"];
+  const publicPaths = ["/login", "/api/auth", "/api/auth/linuxdo"];
   if (
     publicPaths.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith("/_next") ||
