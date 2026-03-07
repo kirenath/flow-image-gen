@@ -13,8 +13,14 @@ export async function GET(request) {
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
+  // Derive public origin from LINUXDO_REDIRECT_URI to avoid localhost redirects behind reverse proxy
+  const configuredRedirectUri = process.env.LINUXDO_REDIRECT_URI || "";
+  const baseOrigin = configuredRedirectUri
+    ? new URL(configuredRedirectUri).origin
+    : new URL(request.url).origin;
+
   // Build login URL for error redirects
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = new URL("/login", baseOrigin);
 
   if (error) {
     loginUrl.searchParams.set("error", `授权被拒绝: ${error}`);
@@ -28,9 +34,8 @@ export async function GET(request) {
 
   const clientId = process.env.LINUXDO_CLIENT_ID;
   const clientSecret = process.env.LINUXDO_CLIENT_SECRET;
-  const redirectUri = process.env.LINUXDO_REDIRECT_URI;
 
-  if (!clientId || !clientSecret || !redirectUri) {
+  if (!clientId || !clientSecret || !configuredRedirectUri) {
     loginUrl.searchParams.set("error", "OAuth 服务端配置缺失");
     return NextResponse.redirect(loginUrl);
   }
@@ -47,7 +52,7 @@ export async function GET(request) {
         client_id: clientId,
         client_secret: clientSecret,
         code,
-        redirect_uri: redirectUri,
+        redirect_uri: configuredRedirectUri,
         grant_type: "authorization_code",
       }).toString(),
     });
@@ -108,7 +113,7 @@ export async function GET(request) {
     saveOAuthUser(userInfo);
 
     const sessionValue = `linuxdo:${userInfo.id}`;
-    const homeUrl = new URL("/", request.url);
+    const homeUrl = new URL("/", baseOrigin);
     const response = NextResponse.redirect(homeUrl);
 
     response.cookies.set("flow_auth", sessionValue, {
