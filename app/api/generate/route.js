@@ -4,10 +4,34 @@
  * Hides API key from the browser, streams SSE responses
  */
 
+import { cookies } from "next/headers";
+import {
+  validateKey,
+  hasQuota,
+  incrementUsage,
+  getQuotaInfo,
+} from "@/lib/keys";
+
 // Allow large request bodies (base64 images can be several MB)
 export const maxDuration = 300;
 
 export async function POST(request) {
+  // --- Auth & Quota Check ---
+  const cookieStore = await cookies();
+  const authKey = cookieStore.get("flow_auth")?.value;
+
+  if (!authKey || !validateKey(authKey)) {
+    return Response.json({ error: "未认证，请先登录" }, { status: 401 });
+  }
+
+  if (!hasQuota(authKey)) {
+    const qi = getQuotaInfo(authKey);
+    return Response.json(
+      { error: `额度已用完 (${qi?.used}/${qi?.total})，无法继续生成` },
+      { status: 403 },
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -75,6 +99,9 @@ export async function POST(request) {
     }
 
     // Stream the SSE response back to the client
+    // Increment usage BEFORE streaming (generation was accepted by Flow2API)
+    incrementUsage(authKey);
+
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const reader = response.body.getReader();

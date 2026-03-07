@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 // Gemini 3.1 Flash only — aspect ratios
 const ASPECTS = [
@@ -32,14 +33,44 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   // Image-to-image state
-  const [uploadedImage, setUploadedImage] = useState(null); // base64 data URL or public URL
-  const [uploadedPreview, setUploadedPreview] = useState(null); // preview URL
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [uploadedPreview, setUploadedPreview] = useState(null);
+
+  // Quota state
+  const [quotaInfo, setQuotaInfo] = useState(null); // { role, name, used, total }
 
   const fileInputRef = useRef(null);
-
   const galleryRef = useRef(null);
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
+  const router = useRouter();
+
+  // Fetch quota on mount
+  const fetchQuota = useCallback(async () => {
+    try {
+      const res = await fetch("/api/quota");
+      if (res.ok) {
+        const data = await res.json();
+        setQuotaInfo(data);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchQuota();
+  }, [fetchQuota]);
+
+  const isQuotaExhausted =
+    quotaInfo &&
+    quotaInfo.role === "user" &&
+    quotaInfo.total !== null &&
+    quotaInfo.used >= quotaInfo.total;
+
+  const handleLogout = async () => {
+    await fetch("/api/auth", { method: "DELETE" });
+    router.push("/login");
+    router.refresh();
+  };
 
   // Auto-resize textarea
   useEffect(() => {
@@ -82,7 +113,7 @@ export default function Home() {
   };
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim() || generating) return;
+    if (!prompt.trim() || generating || isQuotaExhausted) return;
 
     const aspect = ASPECTS[selectedAspect];
     const res = RESOLUTIONS[selectedRes];
@@ -242,6 +273,7 @@ export default function Home() {
       setGenerating(false);
       setStatusText("");
       abortRef.current = null;
+      fetchQuota(); // Refresh quota after generation
     }
   }, [
     prompt,
@@ -306,9 +338,24 @@ export default function Home() {
           <h1>Flow Image Gen</h1>
           <span className="badge">Gemini 3.1 Flash</span>
         </div>
-        <div className="header-status">
-          <span className="status-dot" />
-          <span>已连接</span>
+        <div className="header-right">
+          {quotaInfo && (
+            <div className="quota-display">
+              <span className="quota-name">{quotaInfo.name}</span>
+              <span className="quota-badge">
+                {quotaInfo.role === "admin"
+                  ? "∞ 无限"
+                  : `${quotaInfo.total - quotaInfo.used} / ${quotaInfo.total}`}
+              </span>
+            </div>
+          )}
+          <button
+            className="btn-logout"
+            onClick={handleLogout}
+            title="退出登录"
+          >
+            退出
+          </button>
         </div>
       </header>
 
@@ -478,9 +525,9 @@ export default function Home() {
               <button
                 className="generate-btn"
                 onClick={handleGenerate}
-                disabled={!prompt.trim()}
+                disabled={!prompt.trim() || isQuotaExhausted}
               >
-                ✨ 生成
+                {isQuotaExhausted ? "额度已用完" : "✨ 生成"}
               </button>
             )}
           </div>
