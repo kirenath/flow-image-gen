@@ -34,8 +34,7 @@ export default function Home() {
   // Image-to-image state
   const [uploadedImage, setUploadedImage] = useState(null); // base64 data URL or public URL
   const [uploadedPreview, setUploadedPreview] = useState(null); // preview URL
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlInputValue, setUrlInputValue] = useState("");
+
   const fileInputRef = useRef(null);
 
   const galleryRef = useRef(null);
@@ -76,28 +75,9 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
-  // Handle URL image input
-  const handleUrlSubmit = () => {
-    const url = urlInputValue.trim();
-    if (!url) return;
-    if (
-      !url.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/i) &&
-      !url.match(/^https?:\/\//)
-    ) {
-      setError("请输入有效的图片 URL");
-      return;
-    }
-    setUploadedImage(url); // Pass URL directly, Flow2API supports it
-    setUploadedPreview(url);
-    setShowUrlInput(false);
-    setUrlInputValue("");
-  };
-
   const clearImage = () => {
     setUploadedImage(null);
     setUploadedPreview(null);
-    setShowUrlInput(false);
-    setUrlInputValue("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -118,9 +98,9 @@ export default function Home() {
     try {
       abortRef.current = new AbortController();
 
-      // If image is base64 (local file), upload to R2 first
-      let imageForApi = currentImage;
-      if (currentImage && currentImage.startsWith("data:")) {
+      // Upload image to R2 first
+      let imageForApi = null;
+      if (currentImage) {
         setStatusText("📤 正在上传图片到 R2...\n");
         try {
           // 1. Get presigned URL from our API
@@ -316,16 +296,6 @@ export default function Home() {
         }
       }
     }
-    // Check for pasted image URL
-    const text = e.clipboardData?.getData("text");
-    if (
-      text &&
-      text.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/i)
-    ) {
-      e.preventDefault();
-      setUploadedImage(text);
-      setUploadedPreview(text);
-    }
   };
 
   return (
@@ -465,38 +435,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* URL input */}
-          {showUrlInput && (
-            <div className="url-input-row">
-              <input
-                className="url-input"
-                type="text"
-                placeholder="粘贴图片 URL，如 https://example.com/image.png"
-                value={urlInputValue}
-                onChange={(e) => setUrlInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleUrlSubmit();
-                  }
-                }}
-                autoFocus
-              />
-              <button className="url-submit-btn" onClick={handleUrlSubmit}>
-                确定
-              </button>
-              <button
-                className="url-cancel-btn"
-                onClick={() => {
-                  setShowUrlInput(false);
-                  setUrlInputValue("");
-                }}
-              >
-                取消
-              </button>
-            </div>
-          )}
-
           {/* Row 3: Prompt + buttons */}
           <div className="prompt-row">
             <button
@@ -505,16 +443,9 @@ export default function Home() {
               disabled={generating}
               title="上传本地图片"
             >
-              📷
+              📷 上传图片
             </button>
-            <button
-              className="upload-btn"
-              onClick={() => setShowUrlInput(!showUrlInput)}
-              disabled={generating}
-              title="粘贴图片 URL"
-            >
-              🔗
-            </button>
+
             <input
               ref={fileInputRef}
               type="file"

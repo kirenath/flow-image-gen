@@ -42,6 +42,30 @@
   box-sizing: border-box;
 }
 
+/* Global sleek scrollbar */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
 html,
 body {
   height: 100%;
@@ -155,19 +179,6 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.gallery::-webkit-scrollbar {
-  width: 4px;
-}
-
-.gallery::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.gallery::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
 }
 
 .empty-state {
@@ -498,23 +509,27 @@ body::before {
 
 /* ===== Upload Button ===== */
 .upload-btn {
-  width: 44px;
   height: 44px;
+  padding: 0 14px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--bg-card);
-  font-size: 18px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   flex-shrink: 0;
+  color: var(--text-secondary);
+  font-family: inherit;
 }
 
 .upload-btn:hover:not(:disabled) {
   background: var(--bg-card-hover);
   border-color: var(--border-active);
+  color: var(--text-primary);
 }
 
 .upload-btn:disabled {
@@ -593,64 +608,6 @@ body::before {
 .source-image-badge span {
   font-size: 10px;
   color: var(--text-muted);
-}
-
-/* ===== URL Input ===== */
-.url-input-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  animation: fade-in 0.2s ease-out;
-}
-
-.url-input {
-  flex: 1;
-  padding: 8px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-active);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-family: inherit;
-}
-
-.url-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-.url-input::placeholder {
-  color: var(--text-muted);
-}
-
-.url-submit-btn,
-.url-cancel-btn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid var(--border-color);
-  transition: all 0.2s ease;
-}
-
-.url-submit-btn {
-  background: var(--accent-glow);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.url-submit-btn:hover {
-  background: rgba(139, 92, 246, 0.25);
-}
-
-.url-cancel-btn {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.url-cancel-btn:hover {
-  background: var(--bg-card-hover);
 }
 
 /* ===== Lightbox ===== */
