@@ -74,7 +74,7 @@ export async function POST(request) {
   };
 
   console.log(
-    `[Flow2API] Request: model=${model}, hasImage=${!!image}, prompt="${prompt.slice(0, 50)}..."`,
+    `[Flow2API] Request [User: ${authKey}]: model=${model}, hasImage=${!!image}, prompt="${prompt.slice(0, 50)}..."`,
   );
 
   try {
