@@ -957,21 +957,30 @@ body::before {
     padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   }
   .controls-row {
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 4px;
   }
   .controls-label {
     font-size: 11px;
-    min-width: 36px;
+    min-width: 32px;
+  }
+  .aspect-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .aspect-pills::-webkit-scrollbar {
+    display: none;
   }
   .model-select {
     min-width: 140px;
     font-size: 12px;
   }
   .aspect-pill {
-    padding: 5px 8px;
+    padding: 4px 8px;
     font-size: 11px;
+    flex-shrink: 0;
   }
   .prompt-input {
     font-size: 16px; /* Prevent iOS auto-zoom on focus */
