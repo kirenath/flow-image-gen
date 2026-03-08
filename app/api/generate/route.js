@@ -101,13 +101,17 @@ export async function POST(request) {
     }
 
     // Stream the SSE response back to the client
-    // Quota is deducted only after detecting image data in the stream
+    // Quota is deducted only after detecting REAL image data in delta.content
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const reader = response.body.getReader();
-    let quotaDeducted = false;
 
     (async () => {
+      let quotaDeducted = false;
+      let sseBuffer = "";
+      let allContent = "";
+      let hasError = false;
+
       try {
         const decoder = new TextDecoder();
         while (true) {
@@ -115,14 +119,44 @@ export async function POST(request) {
           if (done) break;
           await writer.write(value);
 
-          // Detect image data in the stream (only need to match once)
-          if (!quotaDeducted) {
+          // Parse SSE lines properly instead of raw string matching
+          if (!quotaDeducted && !hasError) {
             const text = decoder.decode(value, { stream: true });
-            if (text.includes('"image_url"') || text.includes("data:image/")) {
+            sseBuffer += text;
+            const lines = sseBuffer.split("\n");
+            sseBuffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]")
+                continue;
+              try {
+                const parsed = JSON.parse(trimmed.slice(6));
+                if (parsed.error) {
+                  hasError = true;
+                  console.log(
+                    `[Quota] Error detected in stream for ${authKey}, skipping deduction`,
+                  );
+                  break;
+                }
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  allContent += content;
+                }
+              } catch {
+                // ignore JSON parse errors for incomplete chunks
+              }
+            }
+
+            // Deduct only when delta.content genuinely contains an image
+            if (
+              !hasError &&
+              (allContent.includes("![") || allContent.includes("data:image/"))
+            ) {
               incrementUsage(authKey);
               quotaDeducted = true;
               console.log(
-                `[Quota] Deducted 1 for ${authKey} (image detected in stream)`,
+                `[Quota] Deducted 1 for ${authKey} (image detected in delta.content)`,
               );
             }
           }
@@ -132,7 +166,7 @@ export async function POST(request) {
       } finally {
         if (!quotaDeducted) {
           console.log(
-            `[Quota] NOT deducted for ${authKey} (no image in stream)`,
+            `[Quota] NOT deducted for ${authKey} (no image in stream, hasError=${hasError})`,
           );
         }
         await writer.close();
