@@ -44,8 +44,8 @@
 
 /* Global sleek scrollbar */
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 *::-webkit-scrollbar-track {
@@ -53,12 +53,12 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.35);
 }
 
 * {
@@ -200,6 +200,7 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  scroll-behavior: smooth;
 }
 
 .empty-state {
@@ -228,6 +229,7 @@ body::before {
   border-radius: 16px;
   overflow: hidden;
   animation: fade-in 0.4s ease-out;
+  flex-shrink: 0;
 }
 
 @keyframes fade-in {
@@ -283,8 +285,12 @@ body::before {
   max-height: 500px;
   border-radius: 8px;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, max-height 0.3s ease;
   object-fit: contain;
+}
+
+.gallery.multi-images .history-item-body img {
+  max-height: 350px;
 }
 
 .history-item-body img:hover {
@@ -999,6 +1005,9 @@ body::before {
   }
   .history-item-body img {
     max-height: 300px;
+  }
+  .gallery.multi-images .history-item-body img {
+    max-height: 200px;
   }
   .history-item-actions {
     justify-content: space-around;

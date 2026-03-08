@@ -11,6 +11,24 @@ function LoginContent() {
     window.location.href = "/api/auth/linuxdo";
   };
 
+  const handleDevLogin = async () => {
+    try {
+      const res = await fetch("/api/auth/dev-login", { method: "POST" });
+      if (res.ok) {
+        window.location.href = "/";
+      } else {
+        const data = await res.json();
+        alert(data.error || "开发登录失败");
+      }
+    } catch (e) {
+      alert("网络错误");
+    }
+  };
+
+  const isDevBypass =
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_LOCAL_DEV_BYPASS === "true";
+
   return (
     <div className="login-page">
       <div className="login-card">
@@ -25,6 +43,20 @@ function LoginContent() {
         <button type="button" className="login-oauth-btn" onClick={handleLogin}>
           🐧 使用 Linux.do 登录
         </button>
+
+        {isDevBypass && (
+          <button
+            type="button"
+            className="login-oauth-btn"
+            style={{
+              marginTop: "12px",
+              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+            }}
+            onClick={handleDevLogin}
+          >
+            🚧 [Dev] 模拟管理员登录
+          </button>
+        )}
 
         <div className="login-footer">
           <p>需要 Trust Level 2+ 才能使用</p>

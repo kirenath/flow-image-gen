@@ -432,7 +432,10 @@ export default function Home() {
 
       {/* Gallery */}
       <main className="main">
-        <div className="gallery" ref={galleryRef}>
+        <div
+          className={`gallery ${history.length > 1 ? "multi-images" : ""}`}
+          ref={galleryRef}
+        >
           {history.length === 0 && !generating && !error && (
             <div className="empty-state">
               <div className="icon">🎨</div>
