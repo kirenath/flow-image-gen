@@ -99,23 +99,40 @@ export async function POST(request) {
     }
 
     // Stream the SSE response back to the client
-    // Increment usage BEFORE streaming (generation was accepted by Flow2API)
-    incrementUsage(authKey);
-
+    // Quota is deducted only after detecting image data in the stream
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const reader = response.body.getReader();
+    let quotaDeducted = false;
 
     (async () => {
       try {
+        const decoder = new TextDecoder();
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           await writer.write(value);
+
+          // Detect image data in the stream (only need to match once)
+          if (!quotaDeducted) {
+            const text = decoder.decode(value, { stream: true });
+            if (text.includes('"image_url"') || text.includes("data:image/")) {
+              incrementUsage(authKey);
+              quotaDeducted = true;
+              console.log(
+                `[Quota] Deducted 1 for ${authKey} (image detected in stream)`,
+              );
+            }
+          }
         }
       } catch (e) {
         console.error("[Flow2API] Stream error:", e);
       } finally {
+        if (!quotaDeducted) {
+          console.log(
+            `[Quota] NOT deducted for ${authKey} (no image in stream)`,
+          );
+        }
         await writer.close();
       }
     })();
