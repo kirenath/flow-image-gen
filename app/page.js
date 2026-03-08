@@ -561,7 +561,7 @@ export default function Home() {
               disabled={generating}
               title="上传本地图片"
             >
-              📷 上传图片
+              📷 <span className="btn-label">上传图片</span>
             </button>
 
             <input
@@ -598,7 +598,13 @@ export default function Home() {
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isQuotaExhausted}
               >
-                {isQuotaExhausted ? "所有额度已用完" : "✨ 生成"}
+                {isQuotaExhausted ? (
+                  "额度用完"
+                ) : (
+                  <>
+                    ✨ <span className="btn-label">生成</span>
+                  </>
+                )}
               </button>
             )}
           </div>

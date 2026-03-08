@@ -1028,7 +1028,8 @@ body::before {
     padding: 1px 6px;
   }
   .quota-detail {
-    display: none; /* Hide individual pools, keep total only */
+    font-size: 9px;
+    padding: 1px 5px;
   }
   .redeem-btn {
     padding: 4px 8px;
@@ -1039,20 +1040,19 @@ body::before {
     font-size: 11px;
   }
   .prompt-row {
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
   }
-  .prompt-input-wrapper {
-    order: 1;
-    flex: 1 1 100%;
+  .btn-label {
+    display: none; /* Hide text labels, keep emoji icons */
   }
   .upload-btn {
-    order: 2;
-    flex: 1;
+    padding: 0 10px;
+    height: 38px;
+    min-width: 38px;
   }
   .generate-btn {
-    order: 3;
-    flex: 1;
+    padding: 8px 12px;
+    font-size: 12px;
   }
   .gallery {
     padding: 10px;
