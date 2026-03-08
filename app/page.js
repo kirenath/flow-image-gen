@@ -39,6 +39,13 @@ export default function Home() {
   // Quota state
   const [quotaInfo, setQuotaInfo] = useState(null); // { role, name, used, total }
 
+  // Redeem modal state
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [redeemInput, setRedeemInput] = useState("");
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemError, setRedeemError] = useState(null);
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+
   const fileInputRef = useRef(null);
   const galleryRef = useRef(null);
   const textareaRef = useRef(null);
@@ -63,13 +70,43 @@ export default function Home() {
   const isQuotaExhausted =
     quotaInfo &&
     quotaInfo.role === "user" &&
-    quotaInfo.total !== null &&
-    quotaInfo.used >= quotaInfo.total;
+    quotaInfo.totalAvailable !== null &&
+    quotaInfo.totalAvailable <= 0;
 
   const handleLogout = async () => {
     await fetch("/api/auth", { method: "DELETE" });
     router.push("/login");
     router.refresh();
+  };
+
+  // Redeem code handler
+  const handleRedeem = async () => {
+    if (!redeemInput.trim() || redeemLoading) return;
+    setRedeemLoading(true);
+    setRedeemError(null);
+    try {
+      const res = await fetch("/api/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: redeemInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRedeemError(data.error || "兑换失败");
+        return;
+      }
+      // Success
+      setShowRedeemModal(false);
+      setRedeemInput("");
+      setRedeemError(null);
+      setToast({ type: "success", message: data.message });
+      fetchQuota();
+      setTimeout(() => setToast(null), 3000);
+    } catch {
+      setRedeemError("网络错误，请重试");
+    } finally {
+      setRedeemLoading(false);
+    }
   };
 
   // Auto-resize textarea
@@ -342,12 +379,43 @@ export default function Home() {
           {quotaInfo && (
             <div className="quota-display">
               <span className="quota-name">{quotaInfo.name}</span>
-              <span className="quota-badge">
-                {quotaInfo.role === "admin"
-                  ? "∞ 无限"
-                  : `${quotaInfo.total - quotaInfo.used} / ${quotaInfo.total}`}
-              </span>
+              {quotaInfo.role === "admin" ? (
+                <span className="quota-badge">∞ 无限</span>
+              ) : (
+                <>
+                  <span className="quota-badge" title="每日额度">
+                    今日 {quotaInfo.dailyTotal - quotaInfo.dailyUsed}/
+                    {quotaInfo.dailyTotal}
+                  </span>
+                  <span className="quota-badge" title="初始额度">
+                    初始 {quotaInfo.initialTotal - quotaInfo.initialUsed}/
+                    {quotaInfo.initialTotal}
+                  </span>
+                  {quotaInfo.bonusTotal > 0 && (
+                    <span className="quota-badge" title="兑换码额度">
+                      额外 {quotaInfo.bonusTotal - quotaInfo.bonusUsed}/
+                      {quotaInfo.bonusTotal}
+                    </span>
+                  )}
+                  <span className="quota-badge quota-total" title="总可用次数">
+                    可用 {quotaInfo.totalAvailable}
+                  </span>
+                </>
+              )}
             </div>
+          )}
+          {quotaInfo && quotaInfo.role !== "admin" && (
+            <button
+              className="redeem-btn"
+              onClick={() => {
+                setShowRedeemModal(true);
+                setRedeemError(null);
+                setRedeemInput("");
+              }}
+              title="兑换额度"
+            >
+              🎁 兑换
+            </button>
           )}
           <button
             className="btn-logout"
@@ -527,12 +595,61 @@ export default function Home() {
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isQuotaExhausted}
               >
-                {isQuotaExhausted ? "额度已用完" : "✨ 生成"}
+                {isQuotaExhausted ? "所有额度已用完" : "✨ 生成"}
               </button>
             )}
           </div>
         </div>
       </main>
+
+      {/* Redeem Modal */}
+      {showRedeemModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowRedeemModal(false)}
+        >
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="modal-title">🎁 兑换额度</h2>
+            <p className="modal-desc">
+              输入管理员提供的兑换码，获得额外生图次数
+            </p>
+            <input
+              className="modal-input"
+              type="text"
+              placeholder="输入兑换码，如 FLOW-XXXX-XXXX"
+              value={redeemInput}
+              onChange={(e) => setRedeemInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleRedeem()}
+              disabled={redeemLoading}
+              autoFocus
+            />
+            {redeemError && <div className="modal-error">{redeemError}</div>}
+            <div className="modal-actions">
+              <button
+                className="modal-btn modal-btn-cancel"
+                onClick={() => setShowRedeemModal(false)}
+                disabled={redeemLoading}
+              >
+                取消
+              </button>
+              <button
+                className="modal-btn modal-btn-confirm"
+                onClick={handleRedeem}
+                disabled={!redeemInput.trim() || redeemLoading}
+              >
+                {redeemLoading ? "兑换中..." : "确认兑换"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          {toast.type === "success" ? "✅" : "❌"} {toast.message}
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightboxUrl && (

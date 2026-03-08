@@ -27,7 +27,9 @@ export async function POST(request) {
   if (!hasQuota(authKey)) {
     const qi = getQuotaInfo(authKey);
     return Response.json(
-      { error: `额度已用完 (${qi?.used}/${qi?.total})，无法继续生成` },
+      {
+        error: `所有额度已用完 (可用: ${qi?.totalAvailable ?? 0})，明天再来吧`,
+      },
       { status: 403 },
     );
   }
