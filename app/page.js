@@ -383,16 +383,19 @@ export default function Home() {
                 <span className="quota-badge">∞ 无限</span>
               ) : (
                 <>
-                  <span className="quota-badge" title="每日额度">
+                  <span className="quota-badge quota-detail" title="每日额度">
                     今日 {quotaInfo.dailyTotal - quotaInfo.dailyUsed}/
                     {quotaInfo.dailyTotal}
                   </span>
-                  <span className="quota-badge" title="初始额度">
+                  <span className="quota-badge quota-detail" title="初始额度">
                     初始 {quotaInfo.initialTotal - quotaInfo.initialUsed}/
                     {quotaInfo.initialTotal}
                   </span>
                   {quotaInfo.bonusTotal > 0 && (
-                    <span className="quota-badge" title="兑换码额度">
+                    <span
+                      className="quota-badge quota-detail"
+                      title="兑换码额度"
+                    >
                       额外 {quotaInfo.bonusTotal - quotaInfo.bonusUsed}/
                       {quotaInfo.bonusTotal}
                     </span>
