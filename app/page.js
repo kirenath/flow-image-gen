@@ -2,29 +2,120 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Monitor,
+  Smartphone,
+  Square,
+  Image as ImageIcon,
+  Clipboard,
+  Sparkles,
+  UploadCloud,
+  CheckCircle2,
+  Search,
+  Download,
+  ExternalLink,
+  X,
+  Camera,
+  RefreshCcw,
+  Gift,
+  History,
+  Ban,
+  Palette,
+  XCircle,
+  Square as StopSquare,
+} from "lucide-react";
 
-// Gemini 3.1 Flash only — aspect ratios
-const ASPECTS = [
-  { label: "横屏 16:9", suffix: "landscape", icon: "🖥️" },
-  { label: "竖屏 9:16", suffix: "portrait", icon: "📱" },
-  { label: "方图 1:1", suffix: "square", icon: "⬜" },
-  { label: "横屏 4:3", suffix: "four-three", icon: "🖼️" },
-  { label: "竖屏 3:4", suffix: "three-four", icon: "📋" },
+// All supported aspect ratios
+const ALL_ASPECTS = [
+  {
+    id: "landscape",
+    label: "横屏 16:9",
+    suffix: "landscape",
+    icon: <Monitor size={16} />,
+  },
+  {
+    id: "portrait",
+    label: "竖屏 9:16",
+    suffix: "portrait",
+    icon: <Smartphone size={16} />,
+  },
+  {
+    id: "square",
+    label: "方图 1:1",
+    suffix: "square",
+    icon: <Square size={16} />,
+  },
+  {
+    id: "four-three",
+    label: "横屏 4:3",
+    suffix: "four-three",
+    icon: <ImageIcon size={16} />,
+  },
+  {
+    id: "three-four",
+    label: "竖屏 3:4",
+    suffix: "three-four",
+    icon: <Clipboard size={16} />,
+  },
 ];
 
-const RESOLUTIONS = [
-  { label: "标准", suffix: "" },
-  { label: "2K", suffix: "-2k" },
-  { label: "4K", suffix: "-4k" },
+const ALL_RESOLUTIONS = [
+  { id: "standard", label: "标准", suffix: "" },
+  { id: "2k", label: "2K", suffix: "-2k" },
+  { id: "4k", label: "4K", suffix: "-4k" },
 ];
 
-function buildModelId(aspectSuffix, resSuffix) {
-  return `gemini-3.1-flash-image-${aspectSuffix}${resSuffix}`;
+// Model definitions
+const MODELS = [
+  {
+    label: "Banana 2",
+    prefix: "gemini-3.1-flash-image",
+    badge: "Gemini 3.1 Flash",
+    aspects: ["landscape", "portrait", "square", "four-three", "three-four"],
+    resolutions: ["standard", "2k", "4k"],
+  },
+  {
+    label: "Banana Pro",
+    prefix: "gemini-3.0-pro-image",
+    badge: "Gemini 3.0 Pro",
+    aspects: ["landscape", "portrait", "square", "four-three", "three-four"],
+    resolutions: ["standard", "2k", "4k"],
+  },
+  {
+    label: "Imagen 4",
+    prefix: "imagen-4.0-generate-preview",
+    badge: "Imagen 4",
+    aspects: ["landscape", "portrait"],
+    resolutions: ["standard"],
+  },
+];
+
+// Strip any known model prefix to show just the aspect/res part
+const MODEL_PREFIXES = MODELS.map((m) => m.prefix + "-");
+function stripModelPrefix(modelStr) {
+  for (const p of MODEL_PREFIXES) {
+    if (modelStr.startsWith(p)) return modelStr.slice(p.length);
+  }
+  return modelStr;
+}
+
+function buildModelId(modelPrefix, aspectSuffix, resSuffix) {
+  return `${modelPrefix}-${aspectSuffix}${resSuffix}`;
 }
 
 export default function Home() {
+  const [selectedModel, setSelectedModel] = useState(0);
   const [selectedAspect, setSelectedAspect] = useState(0);
   const [selectedRes, setSelectedRes] = useState(0);
+
+  // Derived: available aspects/resolutions for selected model
+  const currentModel = MODELS[selectedModel];
+  const availableAspects = ALL_ASPECTS.filter((a) =>
+    currentModel.aspects.includes(a.id),
+  );
+  const availableRes = ALL_RESOLUTIONS.filter((r) =>
+    currentModel.resolutions.includes(r.id),
+  );
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [statusText, setStatusText] = useState("");
@@ -51,6 +142,7 @@ export default function Home() {
   const [pastHistory, setPastHistory] = useState([]);
   const [pastHistoryTotal, setPastHistoryTotal] = useState(0);
   const [pastHistoryLoading, setPastHistoryLoading] = useState(false);
+  const historyLoadedRef = useRef(false);
 
   const fileInputRef = useRef(null);
   const galleryRef = useRef(null);
@@ -82,6 +174,7 @@ export default function Home() {
           setPastHistory(data.items);
         }
         setPastHistoryTotal(data.total);
+        historyLoadedRef.current = true;
       }
     } catch {}
     setPastHistoryLoading(false);
@@ -94,7 +187,7 @@ export default function Home() {
   const handleTogglePastHistory = () => {
     const next = !showPastHistory;
     setShowPastHistory(next);
-    if (next && pastHistory.length === 0) {
+    if (next && !historyLoadedRef.current) {
       fetchPastHistory(0, false);
     }
   };
@@ -184,9 +277,10 @@ export default function Home() {
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || generating || isQuotaExhausted) return;
 
-    const aspect = ASPECTS[selectedAspect];
-    const res = RESOLUTIONS[selectedRes];
-    const modelId = buildModelId(aspect.suffix, res.suffix);
+    const model = MODELS[selectedModel];
+    const aspect = availableAspects[selectedAspect] || availableAspects[0];
+    const res = availableRes[selectedRes] || availableRes[0];
+    const modelId = buildModelId(model.prefix, aspect.suffix, res.suffix);
     const currentPrompt = prompt.trim();
     const currentImage = uploadedImage;
 
@@ -201,7 +295,7 @@ export default function Home() {
       // Upload image to R2 first
       let imageForApi = null;
       if (currentImage) {
-        setStatusText("📤 正在上传图片到 R2...\n");
+        setStatusText("正在上传图片到 R2...\n");
         try {
           // 1. Get presigned URL from our API
           const uploadRes = await fetch("/api/upload", {
@@ -234,7 +328,7 @@ export default function Home() {
           });
           if (!putRes.ok) throw new Error("上传图片到 R2 失败");
 
-          setStatusText("✅ 图片已上传到 R2\n");
+          setStatusText("图片已上传到 R2\n");
           imageForApi = publicUrl;
         } catch (uploadErr) {
           throw new Error(`图片上传失败: ${uploadErr.message}`);
@@ -246,7 +340,7 @@ export default function Home() {
         body.image = imageForApi;
       }
 
-      setStatusText((prev) => prev + "✨ 图片生成任务已启动\n");
+      setStatusText((prev) => prev + "图片生成任务已启动\n");
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -327,6 +421,10 @@ export default function Home() {
             timestamp: new Date().toLocaleTimeString(),
           },
         ]);
+
+        // 重新从服务器拉取历史记录第一页，确保数据一致
+        fetchPastHistory(0, false);
+
         clearImage();
       } else {
         const debugInfo = allContent
@@ -347,8 +445,11 @@ export default function Home() {
   }, [
     prompt,
     generating,
+    selectedModel,
     selectedAspect,
     selectedRes,
+    availableAspects,
+    availableRes,
     uploadedImage,
     uploadedPreview,
   ]);
@@ -405,7 +506,7 @@ export default function Home() {
       <header className="header">
         <div className="header-title">
           <h1>Flow Image Gen</h1>
-          <span className="badge">Gemini 3.1 Flash</span>
+          <span className="badge">{currentModel.badge}</span>
         </div>
         <div className="header-right">
           {quotaInfo && (
@@ -449,7 +550,7 @@ export default function Home() {
               }}
               title="兑换额度"
             >
-              🎁 兑换
+              <Gift size={16} className="inline mr-1" /> 兑换
             </button>
           )}
           <button
@@ -470,7 +571,9 @@ export default function Home() {
         >
           {history.length === 0 && !generating && !error && (
             <div className="empty-state">
-              <div className="icon">🎨</div>
+              <div className="icon">
+                <Palette size={48} opacity={0.3} />
+              </div>
               <p>输入描述生成图片，或上传图片进行图生图</p>
             </div>
           )}
@@ -479,12 +582,18 @@ export default function Home() {
             <div className="history-item" key={item.id}>
               <div className="history-item-header">
                 <span className="history-item-prompt">
-                  {item.sourceImage && "🖼️ "}
+                  {item.sourceImage && (
+                    <ImageIcon
+                      size={14}
+                      className="inline"
+                      style={{ marginRight: "4px" }}
+                    />
+                  )}
                   {item.prompt}
                 </span>
                 <span className="history-item-meta">
                   <span className="history-item-model">
-                    {item.model.replace("gemini-3.1-flash-image-", "")}
+                    {stripModelPrefix(item.model)}
                   </span>
                 </span>
               </div>
@@ -507,19 +616,34 @@ export default function Home() {
                   className="btn-icon"
                   onClick={() => setLightboxUrl(item.imageUrl)}
                 >
-                  🔍 放大
+                  <Search
+                    size={14}
+                    className="inline"
+                    style={{ marginRight: "4px" }}
+                  />{" "}
+                  放大
                 </button>
                 <button
                   className="btn-icon"
                   onClick={() => handleDownload(item.imageUrl, item.prompt)}
                 >
-                  💾 下载
+                  <Download
+                    size={14}
+                    className="inline"
+                    style={{ marginRight: "4px" }}
+                  />{" "}
+                  下载
                 </button>
                 <button
                   className="btn-icon"
                   onClick={() => window.open(item.imageUrl, "_blank")}
                 >
-                  🔗 新窗口
+                  <ExternalLink
+                    size={14}
+                    className="inline"
+                    style={{ marginRight: "4px" }}
+                  />{" "}
+                  新窗口
                 </button>
               </div>
             </div>
@@ -536,18 +660,51 @@ export default function Home() {
             </div>
           )}
 
-          {error && !generating && <div className="error-text">❌ {error}</div>}
+          {error && !generating && (
+            <div className="error-text">
+              <Ban size={16} className="inline mr-2" /> {error}
+            </div>
+          )}
         </div>
 
         {/* Controls */}
         <div className="controls">
+          {/* Row 0: Model */}
+          <div className="controls-row">
+            <span className="controls-label">模型</span>
+            <div className="aspect-pills">
+              {MODELS.map((m, i) => (
+                <button
+                  key={m.prefix}
+                  className={`aspect-pill ${i === selectedModel ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedModel(i);
+                    // Reset aspect/res if current selection is out of range
+                    const newAspects = ALL_ASPECTS.filter((a) =>
+                      MODELS[i].aspects.includes(a.id),
+                    );
+                    const newRes = ALL_RESOLUTIONS.filter((r) =>
+                      MODELS[i].resolutions.includes(r.id),
+                    );
+                    if (selectedAspect >= newAspects.length)
+                      setSelectedAspect(0);
+                    if (selectedRes >= newRes.length) setSelectedRes(0);
+                  }}
+                  disabled={generating}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Row 1: Aspect Ratio */}
           <div className="controls-row">
             <span className="controls-label">比例</span>
             <div className="aspect-pills">
-              {ASPECTS.map((a, i) => (
+              {availableAspects.map((a, i) => (
                 <button
-                  key={a.suffix}
+                  key={a.id}
                   className={`aspect-pill ${i === selectedAspect ? "active" : ""}`}
                   onClick={() => setSelectedAspect(i)}
                   disabled={generating}
@@ -558,31 +715,35 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Row 2: Resolution */}
-          <div className="controls-row">
-            <span className="controls-label">分辨率</span>
-            <div className="aspect-pills">
-              {RESOLUTIONS.map((r, i) => (
-                <button
-                  key={r.label}
-                  className={`aspect-pill ${i === selectedRes ? "active" : ""}`}
-                  onClick={() => setSelectedRes(i)}
-                  disabled={generating}
-                >
-                  {r.label}
-                </button>
-              ))}
+          {/* Row 2: Resolution (hide if only 1 option) */}
+          {availableRes.length > 1 && (
+            <div className="controls-row">
+              <span className="controls-label">分辨率</span>
+              <div className="aspect-pills">
+                {availableRes.map((r, i) => (
+                  <button
+                    key={r.id}
+                    className={`aspect-pill ${i === selectedRes ? "active" : ""}`}
+                    onClick={() => setSelectedRes(i)}
+                    disabled={generating}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Uploaded image preview */}
           {uploadedPreview && (
             <div className="upload-preview">
               <img src={uploadedPreview} alt="上传的图片" />
               <div className="upload-preview-info">
-                <span>📷 图生图模式</span>
+                <span>
+                  <Camera size={14} className="inline mr-1" /> 图生图模式
+                </span>
                 <button className="upload-remove" onClick={clearImage}>
-                  ✕ 移除
+                  <X size={14} className="inline mr-1" /> 移除
                 </button>
               </div>
             </div>
@@ -591,12 +752,31 @@ export default function Home() {
           {/* Row 3: Prompt + buttons */}
           <div className="prompt-row">
             <button
+              className="history-toggle-btn"
+              onClick={handleTogglePastHistory}
+              title={showPastHistory ? "返回生成" : "历史记录"}
+            >
+              {showPastHistory ? (
+                <RefreshCcw size={16} />
+              ) : (
+                <History size={16} />
+              )}
+              <span className="btn-label">
+                {showPastHistory ? "返回" : "历史"}
+              </span>
+              {pastHistoryTotal > 0 && !showPastHistory && (
+                <span className="past-history-count">{pastHistoryTotal}</span>
+              )}
+            </button>
+
+            <button
               className="upload-btn"
               onClick={() => fileInputRef.current?.click()}
               disabled={generating}
               title="上传本地图片"
             >
-              📷 <span className="btn-label">上传图片</span>
+              <UploadCloud size={16} />{" "}
+              <span className="btn-label">上传图片</span>
             </button>
 
             <input
@@ -625,7 +805,7 @@ export default function Home() {
             </div>
             {generating ? (
               <button className="generate-btn cancel" onClick={handleCancel}>
-                ⏹ 取消
+                <XCircle size={16} className="inline mr-1" /> 取消
               </button>
             ) : (
               <button
@@ -637,7 +817,8 @@ export default function Home() {
                   "额度用完"
                 ) : (
                   <>
-                    ✨ <span className="btn-label">生成</span>
+                    <Sparkles size={16} />{" "}
+                    <span className="btn-label">生成</span>
                   </>
                 )}
               </button>
@@ -645,23 +826,17 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Past History Toggle */}
-        <div className="past-history-section">
-          <button
-            className="past-history-toggle"
-            onClick={handleTogglePastHistory}
-          >
-            {showPastHistory ? "📝 返回生成" : "📜 历史记录"}
-            {pastHistoryTotal > 0 && !showPastHistory && (
-              <span className="past-history-count">{pastHistoryTotal}</span>
-            )}
-          </button>
-
+        {/* Past History Panel */}
+        <div
+          className={`past-history-section ${showPastHistory ? "open" : ""}`}
+        >
           {showPastHistory && (
             <div className="past-history-grid">
               {pastHistory.length === 0 && !pastHistoryLoading && (
                 <div className="empty-state">
-                  <div className="icon">📭</div>
+                  <div className="icon">
+                    <History size={48} opacity={0.3} />
+                  </div>
                   <p>还没有历史记录</p>
                 </div>
               )}
@@ -676,15 +851,19 @@ export default function Home() {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="past-history-thumb-placeholder">🖼️</div>
+                    <div className="past-history-thumb-placeholder">
+                      <ImageIcon size={24} opacity={0.5} />
+                    </div>
                   )}
                   <div className="past-history-info">
                     <span className="past-history-prompt">
-                      {item.has_input_image && "🖼️ "}
+                      {item.has_input_image && (
+                        <ImageIcon size={14} className="inline mr-1" />
+                      )}
                       {item.prompt?.slice(0, 60) || "无提示词"}
                     </span>
                     <span className="past-history-meta">
-                      {item.model?.replace("gemini-3.1-flash-image-", "")}
+                      {stripModelPrefix(item.model || "")}
                       {" · "}
                       {new Date(item.created_at).toLocaleString("zh-CN", {
                         month: "numeric",
@@ -703,7 +882,7 @@ export default function Home() {
                         }
                         title="下载"
                       >
-                        💾
+                        <Download size={16} />
                       </button>
                     </div>
                   )}
@@ -735,7 +914,9 @@ export default function Home() {
           onClick={() => setShowRedeemModal(false)}
         >
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h2 className="modal-title">🎁 兑换额度</h2>
+            <h2 className="modal-title">
+              <Gift size={20} className="inline mr-2" /> 兑换额度
+            </h2>
             <p className="modal-desc">
               输入管理员提供的兑换码，获得额外生图次数
             </p>
@@ -773,7 +954,12 @@ export default function Home() {
       {/* Toast */}
       {toast && (
         <div className={`toast toast-${toast.type}`}>
-          {toast.type === "success" ? "✅" : "❌"} {toast.message}
+          {toast.type === "success" ? (
+            <CheckCircle2 size={16} className="inline" />
+          ) : (
+            <XCircle size={16} className="inline" />
+          )}{" "}
+          {toast.message}
         </div>
       )}
 
@@ -784,7 +970,7 @@ export default function Home() {
             className="lightbox-close"
             onClick={() => setLightboxUrl(null)}
           >
-            ✕
+            <X size={24} />
           </button>
           <img
             src={lightboxUrl}
