@@ -102,22 +102,46 @@ export async function POST(request) {
 
     // Stream the SSE response back to the client
     // Quota is deducted only after detecting REAL image data in delta.content
+    // Sends keepalive comments every 10s to prevent CF Tunnel idle timeout
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const reader = response.body.getReader();
+    const encoder = new TextEncoder();
 
     (async () => {
       let quotaDeducted = false;
       let sseBuffer = "";
       let allContent = "";
       let hasError = false;
+      let writerClosed = false;
+
+      // Keepalive: send SSE comment every 10s to prevent CF Tunnel timeout
+      const keepalive = setInterval(async () => {
+        if (writerClosed) return;
+        try {
+          await writer.write(encoder.encode(": keepalive\n\n"));
+        } catch {
+          // writer already closed, stop keepalive
+          clearInterval(keepalive);
+        }
+      }, 10000);
+
+      const safeWrite = async (data) => {
+        if (writerClosed) return;
+        try {
+          await writer.write(data);
+        } catch {
+          writerClosed = true;
+          clearInterval(keepalive);
+        }
+      };
 
       try {
         const decoder = new TextDecoder();
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          await writer.write(value);
+          await safeWrite(value);
 
           // Parse SSE lines properly instead of raw string matching
           if (!quotaDeducted && !hasError) {
@@ -164,12 +188,19 @@ export async function POST(request) {
       } catch (e) {
         console.error("[Flow2API] Stream error:", e);
       } finally {
+        clearInterval(keepalive);
         if (!quotaDeducted) {
           console.log(
             `[Quota] NOT deducted for ${authKey} (no image in stream, hasError=${hasError})`,
           );
         }
-        await writer.close();
+        if (!writerClosed) {
+          try {
+            await writer.close();
+          } catch {
+            // writer already closed by client disconnect
+          }
+        }
       }
     })();
 
