@@ -145,45 +145,44 @@ export async function POST(request) {
           await safeWrite(value);
 
           // Parse SSE lines properly instead of raw string matching
-          if (!quotaDeducted && !hasError) {
-            const text = decoder.decode(value, { stream: true });
-            sseBuffer += text;
-            const lines = sseBuffer.split("\n");
-            sseBuffer = lines.pop() || "";
+          const text = decoder.decode(value, { stream: true });
+          sseBuffer += text;
+          const lines = sseBuffer.split("\n");
+          sseBuffer = lines.pop() || "";
 
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]")
-                continue;
-              try {
-                const parsed = JSON.parse(trimmed.slice(6));
-                if (parsed.error) {
-                  hasError = true;
-                  console.log(
-                    `[Quota] Error detected in stream for ${authKey}, skipping deduction`,
-                  );
-                  break;
-                }
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  allContent += content;
-                }
-              } catch {
-                // ignore JSON parse errors for incomplete chunks
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]")
+              continue;
+            try {
+              const parsed = JSON.parse(trimmed.slice(6));
+              if (parsed.error && !quotaDeducted) {
+                hasError = true;
+                console.log(
+                  `[Quota] Error detected in stream for ${authKey}, skipping deduction`,
+                );
+                break;
               }
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                allContent += content;
+              }
+            } catch {
+              // ignore JSON parse errors for incomplete chunks
             }
+          }
 
-            // Deduct only when delta.content genuinely contains an image
-            if (
-              !hasError &&
-              (allContent.includes("![") || allContent.includes("data:image/"))
-            ) {
-              await incrementUsage(authKey);
-              quotaDeducted = true;
-              console.log(
-                `[Quota] Deducted 1 for ${authKey} (image detected in delta.content)`,
-              );
-            }
+          // Deduct only when delta.content genuinely contains an image
+          if (
+            !quotaDeducted &&
+            !hasError &&
+            (allContent.includes("![") || allContent.includes("data:image/"))
+          ) {
+            await incrementUsage(authKey);
+            quotaDeducted = true;
+            console.log(
+              `[Quota] Deducted 1 for ${authKey} (image detected in delta.content)`,
+            );
           }
         }
       } catch (e) {
@@ -203,16 +202,24 @@ export async function POST(request) {
             imageUrl = "[base64-inline]";
           }
 
-          try {
-            await supabase.from("generations").insert({
+          const { error: insertErr } = await supabase
+            .from("generations")
+            .insert({
               user_key: authKey,
               model,
               prompt: prompt?.slice(0, 2000),
               has_input_image: !!image,
               image_url: imageUrl,
             });
-          } catch (err) {
-            console.error("[History] Failed to save generation:", err);
+          if (insertErr) {
+            console.error(
+              "[History] Failed to save generation:",
+              insertErr.message,
+            );
+          } else {
+            console.log(
+              `[History] Saved generation for ${authKey} (imageUrl: ${imageUrl ? "yes" : "none"})`,
+            );
           }
         }
 
