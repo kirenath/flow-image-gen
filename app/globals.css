@@ -1241,6 +1241,7 @@ body::after {
   .aspect-pills::-webkit-scrollbar { display: none; }
   .aspect-pill { padding: 5px 10px; font-size: 11px; flex-shrink: 0; }
   .prompt-input { font-size: 16px; }
+  .history-toggle-btn,
   .upload-btn { height: 42px; padding: 0 10px; font-size: 12px; }
   .generate-btn { padding: 10px 18px; font-size: 13px; height: 42px; }
   .history-item-body img { max-height: 300px; }
