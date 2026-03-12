@@ -23,6 +23,7 @@ import {
   Palette,
   XCircle,
   Square as StopSquare,
+  Copy,
 } from "lucide-react";
 
 // All supported aspect ratios
@@ -90,11 +91,15 @@ const MODELS = [
   },
 ];
 
-// Strip any known model prefix to show just the aspect/res part
-const MODEL_PREFIXES = MODELS.map((m) => m.prefix + "-");
-function stripModelPrefix(modelStr) {
-  for (const p of MODEL_PREFIXES) {
-    if (modelStr.startsWith(p)) return modelStr.slice(p.length);
+// Strip any known model prefix to show short label + aspect/res part
+const MODEL_PREFIXES = MODELS.map((m) => ({
+  prefix: m.prefix + "-",
+  short: m.label,
+}));
+function formatModelDisplay(modelStr) {
+  for (const { prefix, short } of MODEL_PREFIXES) {
+    if (modelStr.startsWith(prefix))
+      return `${short} · ${modelStr.slice(prefix.length)}`;
   }
   return modelStr;
 }
@@ -593,7 +598,7 @@ export default function Home() {
                 </span>
                 <span className="history-item-meta">
                   <span className="history-item-model">
-                    {stripModelPrefix(item.model)}
+                    {formatModelDisplay(item.model)}
                   </span>
                 </span>
               </div>
@@ -612,6 +617,21 @@ export default function Home() {
                 />
               </div>
               <div className="history-item-actions">
+                <button
+                  className="btn-icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(item.prompt);
+                    setToast({ type: "success", message: "提示词已复制" });
+                    setTimeout(() => setToast(null), 2000);
+                  }}
+                >
+                  <Copy
+                    size={14}
+                    className="inline"
+                    style={{ marginRight: "4px" }}
+                  />{" "}
+                  复制提示词
+                </button>
                 <button
                   className="btn-icon"
                   onClick={() => setLightboxUrl(item.imageUrl)}
@@ -863,7 +883,7 @@ export default function Home() {
                       {item.prompt?.slice(0, 60) || "无提示词"}
                     </span>
                     <span className="past-history-meta">
-                      {stripModelPrefix(item.model || "")}
+                      {formatModelDisplay(item.model || "")}
                       {" · "}
                       {new Date(item.created_at).toLocaleString("zh-CN", {
                         month: "numeric",
@@ -875,6 +895,21 @@ export default function Home() {
                   </div>
                   {item.image_url && item.image_url !== "[base64-inline]" && (
                     <div className="past-history-actions">
+                      <button
+                        className="btn-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(item.prompt || "");
+                          setToast({
+                            type: "success",
+                            message: "提示词已复制",
+                          });
+                          setTimeout(() => setToast(null), 2000);
+                        }}
+                        title="复制提示词"
+                      >
+                        <Copy size={16} />
+                      </button>
                       <button
                         className="btn-icon"
                         onClick={() =>
