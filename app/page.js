@@ -46,6 +46,12 @@ export default function Home() {
   const [redeemError, setRedeemError] = useState(null);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
 
+  // Past history (from server)
+  const [showPastHistory, setShowPastHistory] = useState(false);
+  const [pastHistory, setPastHistory] = useState([]);
+  const [pastHistoryTotal, setPastHistoryTotal] = useState(0);
+  const [pastHistoryLoading, setPastHistoryLoading] = useState(false);
+
   const fileInputRef = useRef(null);
   const galleryRef = useRef(null);
   const textareaRef = useRef(null);
@@ -63,9 +69,35 @@ export default function Home() {
     } catch {}
   }, []);
 
+  // Fetch past generation history from server
+  const fetchPastHistory = useCallback(async (offset = 0, append = false) => {
+    setPastHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/history?limit=20&offset=${offset}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (append) {
+          setPastHistory((prev) => [...prev, ...data.items]);
+        } else {
+          setPastHistory(data.items);
+        }
+        setPastHistoryTotal(data.total);
+      }
+    } catch {}
+    setPastHistoryLoading(false);
+  }, []);
+
   useEffect(() => {
     fetchQuota();
   }, [fetchQuota]);
+
+  const handleTogglePastHistory = () => {
+    const next = !showPastHistory;
+    setShowPastHistory(next);
+    if (next && pastHistory.length === 0) {
+      fetchPastHistory(0, false);
+    }
+  };
 
   const isQuotaExhausted =
     quotaInfo &&
@@ -611,6 +643,88 @@ export default function Home() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Past History Toggle */}
+        <div className="past-history-section">
+          <button
+            className="past-history-toggle"
+            onClick={handleTogglePastHistory}
+          >
+            {showPastHistory ? "📝 返回生成" : "📜 历史记录"}
+            {pastHistoryTotal > 0 && !showPastHistory && (
+              <span className="past-history-count">{pastHistoryTotal}</span>
+            )}
+          </button>
+
+          {showPastHistory && (
+            <div className="past-history-grid">
+              {pastHistory.length === 0 && !pastHistoryLoading && (
+                <div className="empty-state">
+                  <div className="icon">📭</div>
+                  <p>还没有历史记录</p>
+                </div>
+              )}
+              {pastHistory.map((item) => (
+                <div className="past-history-card" key={item.id}>
+                  {item.image_url && item.image_url !== "[base64-inline]" ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.prompt}
+                      className="past-history-thumb"
+                      onClick={() => setLightboxUrl(item.image_url)}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="past-history-thumb-placeholder">🖼️</div>
+                  )}
+                  <div className="past-history-info">
+                    <span className="past-history-prompt">
+                      {item.has_input_image && "🖼️ "}
+                      {item.prompt?.slice(0, 60) || "无提示词"}
+                    </span>
+                    <span className="past-history-meta">
+                      {item.model?.replace("gemini-3.1-flash-image-", "")}
+                      {" · "}
+                      {new Date(item.created_at).toLocaleString("zh-CN", {
+                        month: "numeric",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  {item.image_url && item.image_url !== "[base64-inline]" && (
+                    <div className="past-history-actions">
+                      <button
+                        className="btn-icon"
+                        onClick={() =>
+                          handleDownload(item.image_url, item.prompt || "image")
+                        }
+                        title="下载"
+                      >
+                        💾
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {pastHistory.length < pastHistoryTotal && (
+                <button
+                  className="past-history-loadmore"
+                  onClick={() => fetchPastHistory(pastHistory.length, true)}
+                  disabled={pastHistoryLoading}
+                >
+                  {pastHistoryLoading ? "加载中..." : "加载更多"}
+                </button>
+              )}
+              {pastHistoryLoading && pastHistory.length === 0 && (
+                <div className="loading-container">
+                  <div className="loading-spinner" />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 

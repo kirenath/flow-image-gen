@@ -12,11 +12,11 @@ export async function GET() {
     return Response.json({ error: "未认证" }, { status: 401 });
   }
 
-  const info = validateKey(authKey);
+  const info = await validateKey(authKey);
   if (!info) {
     return Response.json({ error: "密钥无效" }, { status: 401 });
   }
 
-  const quota = getQuotaInfo(authKey);
+  const quota = await getQuotaInfo(authKey);
   return Response.json(quota);
 }

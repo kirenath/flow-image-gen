@@ -35,7 +35,7 @@ export async function POST(request) {
   const cookieStore = await cookies();
   const authKey = cookieStore.get("flow_auth")?.value;
 
-  if (!authKey || !validateKey(authKey)) {
+  if (!authKey || !(await validateKey(authKey))) {
     return Response.json({ error: "未认证，请先登录" }, { status: 401 });
   }
 
@@ -61,13 +61,13 @@ export async function POST(request) {
   }
 
   // --- Validate ---
-  const check = validateCode(code);
+  const check = await validateCode(code);
   if (!check.valid) {
     return Response.json({ error: check.error }, { status: 400 });
   }
 
   // --- Redeem ---
-  const result = redeemCode(code, authKey);
+  const result = await redeemCode(code, authKey);
   if (!result.success) {
     return Response.json({ error: result.error }, { status: 400 });
   }

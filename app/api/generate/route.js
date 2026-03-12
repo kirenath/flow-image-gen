@@ -11,6 +11,7 @@ import {
   incrementUsage,
   getQuotaInfo,
 } from "@/lib/keys";
+import supabase from "@/lib/supabase";
 
 // Allow large request bodies (base64 images can be several MB)
 export const maxDuration = 300;
@@ -20,12 +21,12 @@ export async function POST(request) {
   const cookieStore = await cookies();
   const authKey = cookieStore.get("flow_auth")?.value;
 
-  if (!authKey || !validateKey(authKey)) {
+  if (!authKey || !(await validateKey(authKey))) {
     return Response.json({ error: "未认证，请先登录" }, { status: 401 });
   }
 
-  if (!hasQuota(authKey)) {
-    const qi = getQuotaInfo(authKey);
+  if (!(await hasQuota(authKey))) {
+    const qi = await getQuotaInfo(authKey);
     return Response.json(
       {
         error: `所有额度已用完 (可用: ${qi?.totalAvailable ?? 0})，明天再来吧`,
@@ -177,7 +178,7 @@ export async function POST(request) {
               !hasError &&
               (allContent.includes("![") || allContent.includes("data:image/"))
             ) {
-              incrementUsage(authKey);
+              await incrementUsage(authKey);
               quotaDeducted = true;
               console.log(
                 `[Quota] Deducted 1 for ${authKey} (image detected in delta.content)`,
@@ -189,6 +190,32 @@ export async function POST(request) {
         console.error("[Flow2API] Stream error:", e);
       } finally {
         clearInterval(keepalive);
+
+        // Record generation history if we got an image
+        if (quotaDeducted && allContent) {
+          // Extract image URL from markdown: ![...](URL) or data:image/...
+          let imageUrl = null;
+          const mdMatch = allContent.match(/!\[.*?\]\((https?:\/\/[^)]+)\)/);
+          if (mdMatch) {
+            imageUrl = mdMatch[1];
+          } else if (allContent.includes("data:image/")) {
+            // For inline base64, just note it exists (too large to store)
+            imageUrl = "[base64-inline]";
+          }
+
+          try {
+            await supabase.from("generations").insert({
+              user_key: authKey,
+              model,
+              prompt: prompt?.slice(0, 2000),
+              has_input_image: !!image,
+              image_url: imageUrl,
+            });
+          } catch (err) {
+            console.error("[History] Failed to save generation:", err);
+          }
+        }
+
         if (!quotaDeducted) {
           console.log(
             `[Quota] NOT deducted for ${authKey} (no image in stream, hasError=${hasError})`,

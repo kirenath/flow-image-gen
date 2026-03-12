@@ -110,7 +110,7 @@ export async function GET(request) {
     }
 
     // Step 4: Save user and set session
-    saveOAuthUser(userInfo);
+    await saveOAuthUser(userInfo);
 
     const sessionValue = `linuxdo:${userInfo.id}`;
     const homeUrl = new URL("/", baseOrigin);
