@@ -1277,7 +1277,7 @@ body::after {
   }
   .btn-label { display: none; }
   .upload-btn { padding: 0 10px; min-width: 38px; }
-  .generate-btn { padding: 8px 14px; font-size: 12px; flex: 1; }
+  .generate-btn { padding: 8px 14px; font-size: 12px; }
   .gallery { padding: 10px; gap: 10px; }
   .controls {
     padding: 8px 10px;
