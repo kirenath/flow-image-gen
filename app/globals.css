@@ -496,6 +496,7 @@ body::after {
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  flex-wrap: wrap;
 }
 
 .prompt-input-wrapper {
@@ -1260,10 +1261,22 @@ body::after {
   .quota-detail { font-size: 9px; padding: 1px 5px; }
   .redeem-btn { padding: 4px 8px; font-size: 11px; }
   .btn-logout { padding: 4px 8px; font-size: 11px; }
-  .prompt-row { gap: 6px; }
+  .prompt-row {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .prompt-input-wrapper {
+    order: -1;
+    flex-basis: 100%;
+  }
+  .history-toggle-btn,
+  .upload-btn,
+  .generate-btn {
+    height: 38px;
+  }
   .btn-label { display: none; }
-  .upload-btn { padding: 0 10px; height: 38px; min-width: 38px; }
-  .generate-btn { padding: 8px 14px; font-size: 12px; height: 38px; }
+  .upload-btn { padding: 0 10px; min-width: 38px; }
+  .generate-btn { padding: 8px 14px; font-size: 12px; flex: 1; }
   .gallery { padding: 10px; gap: 10px; }
   .controls {
     padding: 8px 10px;
